@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Digit Vision</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg1: #f5efe6;
+      --bg2: #f7d9a6;
+      --ink: #182025;
+      --card: rgba(255, 252, 245, 0.84);
+      --accent: #d34e24;
+      --accent-2: #1768ac;
+      --ok: #1f8f5f;
+      --warn: #b55f00;
+      --shadow: 0 18px 60px rgba(24, 32, 37, 0.16);
+      --radius: 22px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "DM Sans", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 20% 20%, rgba(211, 78, 36, 0.25), transparent 35%),
+        radial-gradient(circle at 80% 30%, rgba(23, 104, 172, 0.28), transparent 40%),
+        linear-gradient(145deg, var(--bg1), var(--bg2));
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      overflow-x: hidden;
+    }
+
+    .shell {
+      width: min(980px, 100%);
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: 24px;
+      animation: rise 0.8s ease;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid rgba(24, 32, 37, 0.12);
+      box-shadow: var(--shadow);
+      border-radius: var(--radius);
+      backdrop-filter: blur(6px);
+    }
+
+    .draw-panel {
+      padding: 22px;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: clamp(2rem, 4vw, 2.8rem);
+      line-height: 1;
+      font-family: "Archivo Black", sans-serif;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .subtitle {
+      margin: 0 0 16px;
+      color: rgba(24, 32, 37, 0.8);
+      font-size: 1rem;
+    }
+
+    canvas {
+      width: 100%;
+      aspect-ratio: 1;
+      background: #ffffff;
+      border-radius: 16px;
+      border: 2px solid rgba(24, 32, 37, 0.15);
+      touch-action: none;
+      box-shadow: inset 0 4px 18px rgba(0, 0, 0, 0.08);
+    }
+
+    .btn-row {
+      margin-top: 14px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: none;
+      border-radius: 12px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      padding: 10px 16px;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+      font-family: inherit;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+    }
+
+    .predict {
+      background: linear-gradient(90deg, var(--accent), #f47f39);
+      color: #fff;
+      box-shadow: 0 10px 24px rgba(211, 78, 36, 0.28);
+    }
+
+    .clear {
+      background: linear-gradient(90deg, var(--accent-2), #49a6ff);
+      color: #fff;
+      box-shadow: 0 10px 24px rgba(23, 104, 172, 0.28);
+    }
+
+    .result-panel {
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .prediction {
+      font-size: clamp(3rem, 6vw, 4rem);
+      font-family: "Archivo Black", sans-serif;
+      line-height: 1;
+      color: var(--accent);
+      margin: 4px 0 0;
+    }
+
+    .confidence {
+      font-size: 1.1rem;
+      margin: 0;
+      color: var(--ok);
+      font-weight: 700;
+    }
+
+    .status {
+      margin: 0;
+      color: var(--warn);
+      min-height: 20px;
+      font-weight: 600;
+    }
+
+    .bars {
+      margin-top: 8px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 24px 1fr 50px;
+      gap: 10px;
+      align-items: center;
+      font-size: 0.92rem;
+    }
+
+    .meter {
+      height: 10px;
+      border-radius: 100px;
+      overflow: hidden;
+      background: rgba(24, 32, 37, 0.12);
+    }
+
+    .meter > span {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, #1768ac, #d34e24);
+      transition: width 0.24s ease;
+    }
+
+    @keyframes rise {
+      from { transform: translateY(18px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    @media (max-width: 860px) {
+      .shell {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="card draw-panel">
+      <h1>Digit Vision</h1>
+      <p class="subtitle">Draw one number (0-9). The model predicts it in real time through your local API.</p>
+      <canvas id="draw" width="420" height="420"></canvas>
+      <div class="btn-row">
+        <button class="predict" id="predictBtn">Predict Digit</button>
+        <button class="clear" id="clearBtn">Clear Canvas</button>
+      </div>
+    </section>
+
+    <section class="card result-panel">
+      <p style="margin:0;font-weight:700;letter-spacing:0.04em;text-transform:uppercase">Prediction</p>
+      <p id="prediction" class="prediction">-</p>
+      <p id="confidence" class="confidence">Confidence: -</p>
+      <p id="status" class="status"></p>
+      <div id="bars" class="bars"></div>
+    </section>
+  </main>
+
+  <script>
+    const canvas = document.getElementById("draw");
+    const ctx = canvas.getContext("2d");
+    const predictBtn = document.getElementById("predictBtn");
+    const clearBtn = document.getElementById("clearBtn");
+    const predictionEl = document.getElementById("prediction");
+    const confidenceEl = document.getElementById("confidence");
+    const statusEl = document.getElementById("status");
+    const barsEl = document.getElementById("bars");
+
+    const DIGITS = Array.from({ length: 10 }, (_, i) => i);
+
+    function initBars() {
+      barsEl.innerHTML = "";
+      DIGITS.forEach((digit) => {
+        const row = document.createElement("div");
+        row.className = "bar-row";
+        row.innerHTML = `
+          <strong>${digit}</strong>
+          <div class="meter"><span id="bar-${digit}"></span></div>
+          <span id="pct-${digit}">0.0%</span>
+        `;
+        barsEl.appendChild(row);
+      });
+    }
+
+    function resetCanvas() {
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.lineWidth = 26;
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      ctx.strokeStyle = "#000000";
+    }
+
+    resetCanvas();
+    initBars();
+
+    let drawing = false;
+
+    function getPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      if (e.touches && e.touches[0]) {
+        return {
+          x: e.touches[0].clientX - rect.left,
+          y: e.touches[0].clientY - rect.top,
+        };
+      }
+      return {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      };
+    }
+
+    function startDraw(e) {
+      drawing = true;
+      const p = getPos(e);
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      e.preventDefault();
+    }
+
+    function moveDraw(e) {
+      if (!drawing) return;
+      const p = getPos(e);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+      e.preventDefault();
+    }
+
+    function stopDraw(e) {
+      if (!drawing) return;
+      drawing = false;
+      e.preventDefault();
+    }
+
+    canvas.addEventListener("mousedown", startDraw);
+    canvas.addEventListener("mousemove", moveDraw);
+    canvas.addEventListener("mouseup", stopDraw);
+    canvas.addEventListener("mouseleave", stopDraw);
+
+    canvas.addEventListener("touchstart", startDraw, { passive: false });
+    canvas.addEventListener("touchmove", moveDraw, { passive: false });
+    canvas.addEventListener("touchend", stopDraw, { passive: false });
+
+    clearBtn.addEventListener("click", () => {
+      resetCanvas();
+      predictionEl.textContent = "-";
+      confidenceEl.textContent = "Confidence: -";
+      statusEl.textContent = "";
+      DIGITS.forEach((d) => {
+        document.getElementById(`bar-${d}`).style.width = "0%";
+        document.getElementById(`pct-${d}`).textContent = "0.0%";
+      });
+    });
+
+    async function canvasToBlob() {
+      return await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    }
+
+    predictBtn.addEventListener("click", async () => {
+      statusEl.textContent = "Predicting...";
+      try {
+        const blob = await canvasToBlob();
+        const form = new FormData();
+        form.append("file", blob, "digit.png");
+
+        const response = await fetch("/predict", {
+          method: "POST",
+          body: form,
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || "Prediction failed");
+        }
+
+        predictionEl.textContent = String(data.predicted_digit);
+        confidenceEl.textContent = `Confidence: ${(data.confidence * 100).toFixed(2)}%`;
+        statusEl.textContent = "";
+
+        data.probabilities.forEach((value, idx) => {
+          const pct = value * 100;
+          document.getElementById(`bar-${idx}`).style.width = `${pct.toFixed(2)}%`;
+          document.getElementById(`pct-${idx}`).textContent = `${pct.toFixed(1)}%`;
+        });
+      } catch (err) {
+        statusEl.textContent = err.message || "Unable to run prediction";
+      }
+    });
+  </script>
+</body>
+</html>
